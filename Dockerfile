@@ -42,6 +42,19 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 # Create data directory for SQLite
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
 
+# Add health check script
+COPY --from=builder /app/package.json ./package.json
+
+# Create startup script before switching user
+RUN echo '#!/bin/sh' > /app/start.sh && \
+    echo 'echo "Starting Tally application..."' >> /app/start.sh && \
+    echo 'echo "Initializing database..."' >> /app/start.sh && \
+    echo 'npx prisma db push --skip-generate' >> /app/start.sh && \
+    echo 'echo "Database initialized, starting server..."' >> /app/start.sh && \
+    echo 'exec node server.js' >> /app/start.sh && \
+    chmod +x /app/start.sh && \
+    chown nextjs:nodejs /app/start.sh
+
 # Set environment variables
 ENV NODE_ENV=production
 ENV DATABASE_URL="file:/app/data/tally.db"
@@ -54,6 +67,10 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
 # Initialize database and start the application
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node server.js"]
+CMD ["/app/start.sh"]
