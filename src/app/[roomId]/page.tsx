@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Minus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Plus, Minus, Trash2, Edit2, Check, X, Copy } from 'lucide-react';
 
 interface Item {
   id: string;
@@ -35,6 +35,7 @@ export default function RoomPage() {
   const [newTitle, setNewTitle] = useState('');
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editItemName, setEditItemName] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchRoom();
@@ -202,6 +203,26 @@ export default function RoomPage() {
     }
   };
 
+  const copyRoomUrl = async () => {
+    const roomUrl = `${window.location.protocol}//${window.location.host}/${roomId}`;
+    try {
+      await navigator.clipboard.writeText(roomUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy URL:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = roomUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -263,9 +284,26 @@ export default function RoomPage() {
                 </>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Room ID: <code className="bg-muted px-2 py-1 rounded">{room.id}</code>
-            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <p className="text-sm text-muted-foreground">
+                Share this room:
+              </p>
+              <code className="bg-muted px-2 py-1 rounded text-sm flex-1 min-w-0 overflow-hidden">
+                {typeof window !== 'undefined' ? 
+                  `${window.location.protocol}//${window.location.host}/${room.id}` : 
+                  `https://your-domain/${room.id}`
+                }
+              </code>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={copyRoomUrl}
+                className="shrink-0"
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+            </div>
           </CardHeader>
         </Card>
 
