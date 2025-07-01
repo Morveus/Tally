@@ -2,6 +2,8 @@
 
 A self-hostable Next.js collaborative tally counter application that allows teams to track counts in real-time.
 
+I needed a multi-user tally counter to inventory several articles spread over multiple boxes. No auth, no users, just items with +/- buttons to count while keeping the data synced between users connected to the same room. 
+
 ## Features
 
 - 🚀 Create instant collaborative counting rooms
