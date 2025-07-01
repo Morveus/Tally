@@ -4,6 +4,10 @@ A self-hostable Next.js collaborative tally counter application that allows team
 
 I needed a multi-user tally counter to inventory several articles spread over multiple boxes. No auth, no users, just items with +/- buttons to count while keeping the data synced between users connected to the same room. 
 
+![Screenshot_20250701_184313_Firefox](https://github.com/user-attachments/assets/7d6e7ea2-8de9-4424-9fb4-1e33edd6d44d)
+
+![Screenshot_20250701_184216_Firefox](https://github.com/user-attachments/assets/06c67774-77e3-40c9-bb1c-cbb80344a0c8)
+
 ## Features
 
 - 🚀 Create instant collaborative counting rooms
