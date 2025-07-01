@@ -61,7 +61,7 @@ export default function Home() {
             Tally Counter
           </CardTitle>
           <CardDescription>
-            Create a collaborative counting room to track anything with your team
+            Create a collaborative room to count anything
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
