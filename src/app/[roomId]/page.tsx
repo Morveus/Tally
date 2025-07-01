@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Minus, Trash2, Edit2, Check, X, Copy } from 'lucide-react';
+import { addToRoomHistory } from '@/lib/room-history';
 
 interface Item {
   id: string;
@@ -35,6 +36,9 @@ export default function RoomPage() {
   const [newTitle, setNewTitle] = useState('');
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editItemName, setEditItemName] = useState('');
+  const [editingCount, setEditingCount] = useState<string | null>(null);
+  const [editCountValue, setEditCountValue] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -78,6 +82,11 @@ export default function RoomPage() {
       if (!response.ok) throw new Error('Room not found');
       const data = await response.json();
       setRoom(data);
+      
+      // Add room to history when successfully loaded
+      if (data && data.id && data.title) {
+        addToRoomHistory(data.id, data.title);
+      }
     } catch (error) {
       console.error('Error fetching room:', error);
     } finally {
@@ -153,6 +162,34 @@ export default function RoomPage() {
         ...room,
         items: room.items.map(i => i.id === itemId ? updatedItem : i)
       });
+    } catch (error) {
+      console.error('Error updating count:', error);
+    }
+  };
+
+  const updateItemCountDirect = async (itemId: string) => {
+    if (!room || !editCountValue.trim()) {
+      setEditingCount(null);
+      return;
+    }
+
+    const newCount = Math.max(0, parseInt(editCountValue) || 0);
+
+    try {
+      const response = await fetch(`/api/items/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: newCount })
+      });
+
+      if (!response.ok) throw new Error('Failed to update count');
+      
+      const updatedItem = await response.json();
+      setRoom({
+        ...room,
+        items: room.items.map(i => i.id === itemId ? updatedItem : i)
+      });
+      setEditingCount(null);
     } catch (error) {
       console.error('Error updating count:', error);
     }
@@ -244,9 +281,9 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4">
+    <div className="min-h-[calc(100vh-73px)] p-4">
       <div className="max-w-4xl mx-auto space-y-6">
-        <Card>
+        <Card className="backdrop-blur-sm bg-card/80 border-border/50 shadow-lg">
           <CardHeader>
             <div className="flex items-center gap-2">
               {editingTitle ? (
@@ -270,7 +307,9 @@ export default function RoomPage() {
                 </>
               ) : (
                 <>
-                  <CardTitle className="text-2xl flex-1">{room.title}</CardTitle>
+                  <CardTitle className="text-2xl flex-1 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                    {room.title}
+                  </CardTitle>
                   <Button
                     size="icon"
                     variant="ghost"
@@ -307,7 +346,7 @@ export default function RoomPage() {
           </CardHeader>
         </Card>
 
-        <Card>
+        <Card className="backdrop-blur-sm bg-card/80 border-border/50 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex gap-2 mb-6">
               <Input
@@ -331,67 +370,123 @@ export default function RoomPage() {
                 room.items.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    className="p-4 rounded-lg bg-accent/10 hover:bg-accent/20 transition-all duration-200 border border-border/30"
                   >
-                    {editingItem === item.id ? (
-                      <>
+                    {/* Top row: Edit button, Item name, Delete button */}
+                    <div className="flex items-center gap-3 mb-3">
+                      {editingItem === item.id ? (
+                        <>
+                          <Button size="sm" variant="ghost" onClick={() => updateItemName(item.id)}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Input
+                            value={editItemName}
+                            onChange={(e) => setEditItemName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') updateItemName(item.id);
+                              if (e.key === 'Escape') setEditingItem(null);
+                            }}
+                            className="flex-1 text-sm"
+                            autoFocus
+                          />
+                          <Button size="sm" variant="ghost" onClick={() => setEditingItem(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditItemName(item.name);
+                              setEditingItem(item.id);
+                            }}
+                            className="hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <span className="flex-1 text-sm text-muted-foreground">{item.name}</span>
+                          {showDeleteConfirm === item.id ? (
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  deleteItem(item.id);
+                                  setShowDeleteConfirm(null);
+                                }}
+                                className="text-xs px-2 py-1 h-6"
+                              >
+                                Delete
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setShowDeleteConfirm(null)}
+                                className="text-xs px-2 py-1 h-6"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setShowDeleteConfirm(item.id)}
+                              className="hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {/* Bottom row: Counter controls */}
+                    <div className="flex items-center justify-center gap-4">
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={() => updateItemCount(item.id, -1)}
+                        disabled={item.count === 0}
+                        className="hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive h-12 w-12"
+                      >
+                        <Minus className="h-6 w-6" />
+                      </Button>
+                      
+                      {editingCount === item.id ? (
                         <Input
-                          value={editItemName}
-                          onChange={(e) => setEditItemName(e.target.value)}
+                          value={editCountValue}
+                          onChange={(e) => setEditCountValue(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') updateItemName(item.id);
-                            if (e.key === 'Escape') setEditingItem(null);
+                            if (e.key === 'Enter') updateItemCountDirect(item.id);
+                            if (e.key === 'Escape') setEditingCount(null);
                           }}
-                          className="flex-1"
+                          className="w-20 text-center font-bold text-3xl h-12"
                           autoFocus
                         />
-                        <Button size="icon" variant="ghost" onClick={() => updateItemName(item.id)}>
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => setEditingItem(null)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="flex-1 font-medium">{item.name}</span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
+                      ) : (
+                        <button
                           onClick={() => {
-                            setEditItemName(item.name);
-                            setEditingItem(item.id);
+                            setEditCountValue(item.count.toString());
+                            setEditingCount(item.id);
                           }}
+                          className="w-20 text-center font-bold text-3xl text-primary hover:bg-primary/10 rounded-md h-12 transition-colors"
                         >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          onClick={() => updateItemCount(item.id, -1)}
-                          disabled={item.count === 0}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="w-20 text-center font-bold text-xl">
                           {item.count}
-                        </span>
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          onClick={() => updateItemCount(item.id, 1)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => deleteItem(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
+                        </button>
+                      )}
+                      
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={() => updateItemCount(item.id, 1)}
+                        className="hover:bg-primary/10 hover:border-primary/50 hover:text-primary h-12 w-12"
+                      >
+                        <Plus className="h-6 w-6" />
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}
