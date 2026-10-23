@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:24.22.1-alpine AS builder
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS runner
+FROM node:24.22.1-alpine AS runner
 
 WORKDIR /app
 
@@ -49,7 +49,7 @@ COPY --from=builder /app/package.json ./package.json
 RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'echo "Starting Tally application..."' >> /app/start.sh && \
     echo 'echo "Initializing database..."' >> /app/start.sh && \
-    echo 'npx prisma db push --skip-generate' >> /app/start.sh && \
+    echo 'npx -y prisma@6.11.0 db push --skip-generate' >> /app/start.sh && \
     echo 'echo "Database initialized, starting server..."' >> /app/start.sh && \
     echo 'exec node server.js' >> /app/start.sh && \
     chmod +x /app/start.sh && \
